@@ -11,6 +11,7 @@ import { BiLogOut, BiSolidUserCircle } from "react-icons/bi";
 import { MdAdminPanelSettings, MdSettings } from "react-icons/md";
 import { FaDatabase } from "react-icons/fa";
 import { useAuth } from "../../contexts/AuthContext";
+import './Sidebar.css';
 
 const Sidebar = () => {
     const navigate = useNavigate();

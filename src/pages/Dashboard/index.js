@@ -8,6 +8,8 @@ import { setupMqttMode } from "../../services/mqttMode";
 import { setupDatabaseMode } from "../../services/databaseMode";
 import { disconnectMQTT } from "../../mqtt/mqtt";
 import "./Dashboard.css";
+import SimpleChart from '../../components/Chart';
+import { fetchHealthData } from "../../services/healthDataService";
 
 Chart.register(...registerables, zoomPlugin, ChartDataLabels);
 
@@ -35,11 +37,11 @@ let globalConnectionState = {
 
 const Dashboard = React.memo(() => {
     console.log("Dashboard component rendering..."); // Debug log
-    
+
     // Declare all hooks at the top
     const chartRef = useRef(null);
     const isInitializedRef = useRef(false);
-    
+
     const [data, setData] = useState({
         temp: null,
         humidity: null,
@@ -50,9 +52,9 @@ const Dashboard = React.memo(() => {
         hrv: null,
         stress: null,
     });
-    
+
     const [isDark, setIsDark] = useState(() => document.body.classList.contains('dark'));
-    
+
     // Memoize the getTextColor function
     const getTextColor = useCallback(() => {
         return isDark ? '#e0e0e0' : '#555555';
@@ -63,32 +65,32 @@ const Dashboard = React.memo(() => {
         return storedData
             ? JSON.parse(storedData)
             : {
-                  labels: [],
-                  datasets: [
-                      {
-                          label: "Respiration",
-                          data: [],
-                          borderColor: "rgba(54, 162, 235, 1)",
-                          backgroundColor: "rgba(54, 162, 235, 0.2)",
-                          fill: true,
-                          tension: 0.4,
-                          pointRadius: 0,
-                          pointHoverRadius: 9,
-                          borderWidth: 3,
-                      },
-                      {
-                          label: "Heart Rate",
-                          data: [],
-                          borderColor: "rgba(255, 99, 132, 1)",
-                          backgroundColor: "rgba(255, 99, 132, 0.2)",
-                          fill: true,
-                          tension: 0.4,
-                          pointRadius: 0,
-                          pointHoverRadius: 6,
-                          borderWidth: 3,
-                      },
-                  ],
-              };
+                labels: [],
+                datasets: [
+                    {
+                        label: "Respiration",
+                        data: [],
+                        borderColor: "rgba(54, 162, 235, 1)",
+                        backgroundColor: "rgba(54, 162, 235, 0.2)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 9,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: "Heart Rate",
+                        data: [],
+                        borderColor: "rgba(255, 99, 132, 1)",
+                        backgroundColor: "rgba(255, 99, 132, 0.2)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                    },
+                ],
+            };
     });
 
     const [mode, setMode] = useState(() => globalConnectionState.mode);
@@ -97,7 +99,7 @@ const Dashboard = React.memo(() => {
     // Initialize connection only once
     useEffect(() => {
         if (isInitializedRef.current) return;
-        
+
         console.log("Initializing Dashboard connection..."); // Debug log
         isInitializedRef.current = true;
 
@@ -135,11 +137,11 @@ const Dashboard = React.memo(() => {
     // Handle mode changes separately
     useEffect(() => {
         if (!isInitializedRef.current) return;
-        
+
         const handleModeChange = async () => {
             if (globalConnectionState.mode !== mode) {
                 console.log(`Switching mode from ${globalConnectionState.mode} to ${mode}`); // Debug log
-                
+
                 // Disconnect existing connection
                 if (globalConnectionState.mqttClient) {
                     disconnectMQTT();
@@ -157,7 +159,7 @@ const Dashboard = React.memo(() => {
                 } else {
                     setupDatabaseMode(setData, setChartData, chartRef);
                 }
-                
+
                 globalConnectionState.mode = mode;
             }
         };
@@ -263,8 +265,8 @@ const Dashboard = React.memo(() => {
                 color: (context) => context.dataset.borderColor,
                 font: { weight: "bold", size: 28 },
                 formatter: (value) => (value !== null ? value : ""),
-                backgroundColor: isDark 
-                    ? 'rgba(45, 45, 45, 0.9)' 
+                backgroundColor: isDark
+                    ? 'rgba(45, 45, 45, 0.9)'
                     : 'rgba(255, 255, 255, 0.9)',
                 borderWidth: 2,
                 borderColor: (context) => context.dataset.borderColor,
@@ -297,7 +299,7 @@ const Dashboard = React.memo(() => {
                     color: getTextColor(),
                     font: { size: 14, weight: "bold" },
                 },
-                grid: { 
+                grid: {
                     display: false,
                 },
             },
@@ -308,8 +310,6 @@ const Dashboard = React.memo(() => {
                     displayFormats: { minute: "HH:mm", hour: "HH:mm" },
                     tooltipFormat: "HH:mm:ss",
                 },
-                min: new Date(new Date().getTime() - DISPLAY_WINDOW_MINUTES * 60000),
-                max: new Date(new Date().getTime() + RIGHT_MARGIN_MINUTES * 60000),
                 ticks: {
                     autoSkip: true,
                     maxRotation: 90,
@@ -317,37 +317,106 @@ const Dashboard = React.memo(() => {
                     color: getTextColor(),
                     font: { size: 14, weight: "bold" },
                 },
-                grid: { 
+                grid: {
                     display: false,
                 },
             },
         },
     }), [getTextColor, isDark]);
 
+    const loadLiveChartData = async () => {
+        const token = localStorage.getItem("token");
+        const deviceId = "2";  // Replace with dynamic deviceId if possible
+
+        const now = new Date();
+        const dummyData = Array.from({ length: 10 }, (_, i) => {
+            const timestamp = new Date(now.getTime() - (9 - i) * 3 * 60 * 1000); // Every 3 minutes
+            return {
+                timestamp: timestamp.toISOString(),
+                heartRate: 70 + Math.floor(Math.random() * 30),     // Random between 70–99
+                respiration: 15 + Math.floor(Math.random() * 10),   // Random between 15–24
+            };
+        });
+        try {
+            console.log("Fetching health data for deviceId:", deviceId);
+            console.log("Token:", token);
+            const healthData = dummyData; //await fetchHealthData(deviceId, token, 10); // last 10 mins
+            console.log("Health data fetched:", healthData);
+
+            if (!Array.isArray(healthData) || healthData.length === 0) {
+                console.warn("No health data returned!");
+                return;
+            }
+
+            const labels = healthData.map(item => new Date(item.timestamp));
+            const startTime = labels[0];
+            const endTime = new Date(startTime.getTime() + DISPLAY_WINDOW_MINUTES * 60000);
+            const heartRates = healthData.map(item => item.heartRate);
+            const respirationRates = healthData.map(item => item.respiration);
+
+            console.log("Heart Rates:", heartRates);
+            console.log("Respiration Rates:", respirationRates);
+
+            setChartData({
+                labels,
+                datasets: [
+                    {
+                        label: "Respiration",
+                        data: respirationRates,
+                        borderColor: "rgba(54, 162, 235, 1)",
+                        backgroundColor: "rgba(54, 162, 235, 0.2)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                    },
+                    {
+                        label: "Heart Rate",
+                        data: heartRates,
+                        borderColor: "rgba(255, 99, 132, 1)",
+                        backgroundColor: "rgba(255, 99, 132, 0.2)",
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0,
+                        pointHoverRadius: 6,
+                        borderWidth: 3,
+                    },
+                ],
+            });
+
+
+
+
+        } catch (error) {
+            console.error("Live chart data fetch failed:", error);
+        }
+    };
+
     // Update chart colors when theme changes
     useEffect(() => {
         const updateChartTheme = () => {
             const newIsDark = document.body.classList.contains('dark');
             setIsDark(newIsDark);
-            
+
             if (!chartRef.current) return;
-            
+
             const textColor = newIsDark ? '#e0e0e0' : '#555555';
-            
+
             // Update legend colors
             chartRef.current.options.plugins.legend.labels.color = textColor;
-            
+
             // Update axis colors
             chartRef.current.options.scales.x.ticks.color = textColor;
             chartRef.current.options.scales.y.ticks.color = textColor;
-            
+
             // Update datalabel background
-            chartRef.current.options.plugins.datalabels.backgroundColor = 
+            chartRef.current.options.plugins.datalabels.backgroundColor =
                 newIsDark ? 'rgba(45, 45, 45, 0.9)' : 'rgba(255, 255, 255, 0.9)';
-                
+
             chartRef.current.update();
         };
-        
+
         // Create observer to watch for class changes on body
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -356,16 +425,22 @@ const Dashboard = React.memo(() => {
                 }
             });
         });
-        
+
         // Start observing
         observer.observe(document.body, { attributes: true });
-        
+
         // Call once to set initial colors
         updateChartTheme();
-        
+
         return () => {
             observer.disconnect();
         };
+    }, []);
+
+    useEffect(() => {
+        loadLiveChartData();
+        const interval = setInterval(loadLiveChartData, 6000);
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -374,7 +449,7 @@ const Dashboard = React.memo(() => {
                 {Object.keys(data).map((key) => (
                     <div className="card" key={key}>
                         <div className="card-value">
-                            {data[key] !== null ? data[key] : "-"} 
+                            {data[key] !== null ? data[key] : "-"}
                             <span className="card-unit">{UNIT_MAPPINGS[key]}</span>
                         </div>
                         <div className="card-title">{key.toUpperCase()}</div>
@@ -383,49 +458,7 @@ const Dashboard = React.memo(() => {
             </div>
 
             <div className="chart-container">
-                <div className="chart-controls">
-                    <button
-                        className="toggle-mode"
-                        onClick={() => setMode(mode === "mqtt" ? "database" : "mqtt")}
-                    >
-                        {mode === "mqtt" ? "Low Latency Mode" : "Normal Mode"}
-                    </button>
-                    <div className="chart-navigation">
-                        <button
-                            className="nav-button"
-                            onClick={() => scrollChart("left")}
-                            title="Scroll Left"
-                        >
-                            <i className="fas fa-chevron-left"></i>
-                        </button>
-                        <button
-                            className="nav-button"
-                            onClick={() => scrollChart("right")}
-                            title="Scroll Right"
-                        >
-                            <i className="fas fa-chevron-right"></i>
-                        </button>
-                        <button className="nav-button" onClick={() => zoomChart("in")} title="Zoom In">
-                            <i className="fas fa-search-plus"></i>
-                        </button>
-                        <button className="nav-button" onClick={() => zoomChart("out")} title="Zoom Out">
-                            <i className="fas fa-search-minus"></i>
-                        </button>
-                        <button
-                            className={`nav-button ${isAutoScrolling ? "active" : ""}`}
-                            onClick={() => setIsAutoScrolling(!isAutoScrolling)}
-                            title={isAutoScrolling ? "Auto-scroll On" : "Auto-scroll Off"}
-                        >
-                            <i className="fas fa-play"></i>
-                        </button>
-                    </div>
-                </div>
-
-                <Line
-                    ref={chartRef}
-                    data={chartData}
-                    options={chartOptions}
-                />
+                <Line ref={chartRef} data={chartData} options={chartOptions} />
             </div>
         </div>
     );

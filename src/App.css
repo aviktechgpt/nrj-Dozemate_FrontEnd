@@ -223,7 +223,8 @@ body.dark .card:nth-child(10) { background: linear-gradient(135deg, rgba(30, 144
     border-radius: 15px;
     margin-top: 10px;
     width: 90vw;
-    height:30vh !important;
+     min-height: 250px;
+    height: auto;
     flex: 1;
     box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
     overflow: hidden;
@@ -438,4 +439,39 @@ body.dark .MuiTypography-root {
 
 body.dark .MuiDialogContentText-root {
     color: var(--text-secondary);
+}
+
+
+@media (max-width: 768px) {
+    .chart-container {
+        height: 300px; /* Ensure enough space on mobile */
+        width: 95vw;   /* Slightly wider */
+        padding: 12px;
+    }
+
+    .chart-container canvas {
+        height: 200px !important; /* Allow canvas to fully render */
+        width: 100% !important;
+    }
+
+    .chart-controls {
+        flex-direction: column; /* Stack toggle and buttons */
+        gap: 10px;
+    }
+
+    .toggle-mode {
+        top: 10px;
+        left: 10px;
+        font-size: 10px;
+        padding: 4px 8px;
+    }
+
+    .nav-button {
+        width: 30px;
+        height: 30px;
+    }
+
+    .nav-button i {
+        font-size: 12px;
+    }
 }

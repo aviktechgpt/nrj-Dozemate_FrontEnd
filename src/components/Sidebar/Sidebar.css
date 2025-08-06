@@ -1,0 +1,51 @@
+/* Base sidebar style */
+.sidebar {
+  width: 220px;
+  background-color: #ffffff;
+  padding: 10px;
+  transition: all 0.3s ease;
+}
+
+.sidebar .MuiButton-root {
+  justify-content: flex-start;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.sidebar .MuiButton-root .icon {
+  font-size: 1.1rem;
+  min-width: 24px;
+}
+
+/* ========== MOBILE VIEW ========== */
+@media (max-width: 768px) {
+  .sidebar {
+    width: 60px;
+    padding: 5px;
+  }
+
+  .sidebar .MuiButton-root {
+    justify-content: center;
+    padding: 8px;
+    min-height: 48px;
+  }
+
+  /* Hide text label INSIDE Button */
+  .sidebar .MuiButton-root span:not(.icon) {
+    display: none !important;
+  }
+
+  .sidebar .icon {
+    font-size: 1.3rem;
+    margin: 0;
+  }
+
+  /* Hide role labels (e.g., Super Admin) */
+  .sidebar .MuiTypography-root {
+    display: none;
+  }
+
+  .sidebar hr {
+    display: none;
+  }
+}

@@ -23,6 +23,7 @@ import { MyContext } from "../../App"; // Verify this path
 import CircularProgress from '@mui/material/CircularProgress';
 import { useAuth } from '../../contexts/AuthContext'; // Ensure this path is correct
 import { useNavigate } from 'react-router-dom';
+import './Header.css';
 
 const Header = () => {
     const [anchorEl, setAnchorEl] = useState(null);
@@ -40,7 +41,7 @@ const Header = () => {
     const handleClickAccDrop = (event) => {
         setAnchorEl(event.currentTarget);
     };
-    
+
     const handleCloseAccDrop = () => {
         setAnchorEl(null);
     };
@@ -103,166 +104,87 @@ const Header = () => {
         if (!userData || !userData.profileImage) {
             return 'https://via.placeholder.com/40';
         }
-        
+
         // Check if the profile image is a full URL or just a path
         if (userData.profileImage.startsWith('http')) {
             return userData.profileImage;
         }
-        
+
         // Otherwise, prepend the backend URL
         return `https://admin.dozemate.com${userData.profileImage}`;
     };
 
     return (
-        <header className="d-flex align-items-center">
-            <div className="container-fluid w-300">
-                <div className="row d-flex align-items-center w-300">
-                    {/* Logo Wrapper with dynamic logo */}
-                    <div className="col-sm-2 part1">
-                        <Link to={'/'} className="d-flex align-items-center logo">
-                            <img 
-                                src={getLogo()} 
-                                alt="Logo" 
-                                className="header-logo"
-                            />
-                        </Link>
-                    </div>
+        <header className="header-container">
+            <div className="header-inner">
+                <div className="header-logo-container">
+                    <Link to="/" className="logo">
+                        <img src={getLogo()} alt="Logo" className="header-logo" />
+                    </Link>
+                </div>
 
-                    <div className="col-sm-3 d-flex align-items-center part2 pl-4">
-                        <Button
-                            className="rounded-circle mr-3"
-                            onClick={() => context.setIsToggleSidebar(!context.isToggleSidebar)}
-                        >
-                            {context.isToggleSidebar === false ? <MdMenuOpen /> : <MdOutlineMenu />}
-                        </Button>
-                        {/* <SearchBox /> */}
-                    </div>
+                <div className="header-center-icons">
+                    <IconButton className="icon-btn" onClick={() => context.setIsToggleSidebar(!context.isToggleSidebar)}>
+                        {context.isToggleSidebar ? <MdOutlineMenu /> : <MdMenuOpen />}
+                    </IconButton>
+                    <IconButton className="icon-btn" aria-label="notifications">
+                        <MdNotifications />
+                    </IconButton>
+                    <IconButton className="icon-btn" aria-label="mail">
+                        <IoMdMail />
+                    </IconButton>
+                </div>
 
-                    <div className="col-sm-7 d-flex align-items-center justify-content-end part3">
-                        <Button className="rounded-circle mr-3"><MdNotifications /></Button>
-                        <Button className="rounded-circle mr-3"><IoMdMail /></Button>
-                        {/* <Button 
-                            className="rounded-circle mr-3"
-                            onClick={() => {
-                                const newTheme = context.themeMode === "light" ? "dark" : "light";
-                                context.setThemeMode(newTheme);
-                                localStorage.setItem('themeMode', newTheme);
-                                console.log("Theme changed to:", newTheme); // Debug log
-                            }}
-                        >
-                            {context.themeMode === "light" ? <MdLightMode /> : <MdNightlight />}
-                        </Button> */}
-
-                        <div className="myAccWrapper">
-                            <Button
-                                className="myAcc d-flex align-items-center"
-                                onClick={handleClickAccDrop}
-                                aria-controls={open ? 'account-menu' : undefined}
-                                aria-haspopup="true"
-                                aria-expanded={open ? 'true' : undefined}
-                            >
-                                <div className="userImg">
-                                    <span className="rounded-circle">
-                                        {loading ? (
-                                            <CircularProgress size={24} />
-                                        ) : (
-                                            <img 
-                                                src={getProfileImageUrl()} 
-                                                alt="User" 
-                                                onError={(e) => {
-                                                    e.target.onerror = null;
-                                                    e.target.src = 'https://via.placeholder.com/40';
-                                                }}
-                                            />
-                                        )}
-                                    </span>
-                                </div>
-                                <div className="userInfo">
-                                    {loading ? (
-                                        <>
-                                            <h6>Loading...</h6>
-                                            <p className="mb-0">Please wait</p>
-                                        </>
-                                    ) : error ? (
-                                        <>
-                                            <h6>Error</h6>
-                                            <p className="mb-0">Please login again</p>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <h6>{userData?.name || 'User'}</h6>
-                                            <p className="mb-0">{userData?.role || 'User'}</p>
-                                        </>
-                                    )}
-                                </div>
-                            </Button>
-                            <Menu
-                                anchorEl={anchorEl}
-                                id="account-menu"
-                                open={open}
-                                onClose={handleCloseAccDrop}
-                                slotProps={{
-                                    paper: {
-                                        elevation: 0,
-                                        sx: {
-                                            overflow: 'visible',
-                                            filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
-                                            mt: 1.5,
-                                            '& .MuiAvatar-root': {
-                                                width: 32,
-                                                height: 32,
-                                                ml: -0.5,
-                                                mr: 1,
-                                            },
-                                            '&::before': {
-                                                content: '""',
-                                                display: 'block',
-                                                position: 'absolute',
-                                                top: 0,
-                                                right: 14,
-                                                width: 10,
-                                                height: 10,
-                                                bgcolor: 'background.paper',
-                                                transform: 'translateY(-50%) rotate(45deg)',
-                                                zIndex: 0,
-                                            },
-                                        },
+                {/* Right: Profile Image */}
+                <div className="header-profile">
+                    <Button className="myAcc" onClick={handleClickAccDrop}>
+                        <span className="userImg">
+                            <img src={getProfileImageUrl()} alt="User" />
+                        </span>
+                    </Button>
+                    {/* Profile Dropdown Menu (unchanged) */}
+                    <Menu
+                        anchorEl={anchorEl}
+                        id="account-menu"
+                        open={open}
+                        onClose={handleCloseAccDrop}
+                        slotProps={{
+                            paper: {
+                                elevation: 0,
+                                sx: {
+                                    overflow: 'visible',
+                                    filter: 'drop-shadow(0px 2px 8px rgba(0,0,0,0.32))',
+                                    mt: 1.5,
+                                    '& .MuiAvatar-root': {
+                                        width: 32,
+                                        height: 32,
+                                        ml: -0.5,
+                                        mr: 1,
                                     },
-                                }}
-                                transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-                                anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
-                            >
-                                <MenuItem onClick={handleCloseAccDrop} component={Link} to="/profile">
-                                    <Avatar /> Profile
-                                </MenuItem>
-                                {/* <MenuItem onClick={handleCloseAccDrop} component={Link} to="/account">
-                                    <Avatar /> My account
-                                </MenuItem> */}
-                                <Divider />
-                                <MenuItem onClick={handleCloseAccDrop} component={Link} to="/reset-password">
-                                    <ListItemIcon>
-                                        <IoShieldHalfSharp fontSize="large" />
-                                    </ListItemIcon>
-                                    Reset Password
-                                </MenuItem>
-                                {/* <MenuItem onClick={handleCloseAccDrop} component={Link} to="/settings">
-                                    <ListItemIcon>
-                                        <Settings fontSize="small" />
-                                    </ListItemIcon>
-                                    Settings
-                                </MenuItem> */}
-                                <MenuItem onClick={handleLogout}>
-                                    <ListItemIcon>
-                                        <Logout fontSize="small" />
-                                    </ListItemIcon>
-                                    Logout
-                                </MenuItem>
-                            </Menu>
-                        </div>
-                    </div>
+                                    '&::before': {
+                                        content: '""',
+                                        display: 'block',
+                                        position: 'absolute',
+                                        top: 0,
+                                        right: 14,
+                                        width: 10,
+                                        height: 10,
+                                        bgcolor: 'background.paper',
+                                        transform: 'translateY(-50%) rotate(45deg)',
+                                        zIndex: 0,
+                                    },
+                                },
+                            },
+                        }}
+                        transformOrigin={{ horizontal: 'right', vertical: 'top' }}
+                        anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+                    >
+
+                    </Menu>
                 </div>
             </div>
         </header>
+
     );
 };
 
