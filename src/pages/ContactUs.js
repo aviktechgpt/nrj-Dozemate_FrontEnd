@@ -8,7 +8,7 @@ import {
   Divider,
   Button
 } from '@mui/material';
-import { 
+import {
   Lightbulb as InnovationIcon,
   HealthAndSafety as HealthIcon,
   Build as EngineeringIcon,
@@ -21,6 +21,9 @@ import {
   Handshake as PartnershipIcon
 } from '@mui/icons-material';
 import './ContactUs.css';
+import { Link as RouterLink } from "react-router-dom";
+import Link from "@mui/material/Link";
+
 
 const AboutUs = () => {
   return (
@@ -28,7 +31,7 @@ const AboutUs = () => {
       {/* Header Section */}
       <Box className="page-header">
         <Typography variant="h4" component="h1" className="page-title">
-          <InfoIcon className="page-icon" /> 
+          <InfoIcon className="page-icon" />
           About SlimIoT Technologies
         </Typography>
         <Typography variant="subtitle1" className="subtitle">
@@ -70,7 +73,7 @@ const AboutUs = () => {
             </Typography>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={6} lg={3}>
           <Paper className="feature-box">
             <Box className="icon-container">
@@ -84,7 +87,7 @@ const AboutUs = () => {
             </Typography>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={6} lg={3}>
           <Paper className="feature-box">
             <Box className="icon-container">
@@ -98,7 +101,7 @@ const AboutUs = () => {
             </Typography>
           </Paper>
         </Grid>
-        
+
         <Grid item xs={12} md={6} lg={3}>
           <Paper className="feature-box">
             <Box className="icon-container">
@@ -155,38 +158,45 @@ const AboutUs = () => {
 
       {/* Contact Information */}
       <Paper elevation={3} className="contact-section">
-        <Typography variant="h5" gutterBottom className="section-title" style={{justifyContent: 'center'}}>
+        <Typography variant="h5" gutterBottom className="section-title" style={{ justifyContent: 'center' }}>
           Get In Touch
         </Typography>
-        
+
         <Box className="contact-item">
           <LocationIcon className="contact-icon" />
           <Typography variant="body1">
             SlimIoT Technologies Private Limited | Faridabad, India
           </Typography>
         </Box>
-        
+
         <Box className="contact-item">
           <EmailIcon className="contact-icon" />
           <Typography variant="body1">
             plawat[at]slimiot.com
           </Typography>
         </Box>
-        
+
         <Box className="contact-item">
           <PhoneIcon className="contact-icon" />
           <Typography variant="body1">
             +91 9310035724
           </Typography>
         </Box>
-        
-        <Button 
-          variant="contained" 
+
+        <Button
+          variant="contained"
           className="contact-button"
           onClick={() => window.location.href = '/support'}
         >
           Contact Us
         </Button>
+
+        <Box sx={{ mt: 2, textAlign: "center" }}>
+          <Link component={RouterLink} to="/terms" underline="hover">Terms</Link>
+          {" "} | {" "}
+          <Link component={RouterLink} to="/privacy" underline="hover">Privacy</Link>
+        </Box>
+
       </Paper>
     </Container>
   );

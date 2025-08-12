@@ -380,7 +380,7 @@ input:checked + .slider:before {
 }
 
 /* SIDEBAR */
-.main .sidebarWrapper{width: 20%; flex: 0 0 20%; z-index: 11; transition: all 0.3s ease-in-out; background:var(--sidebar-bg) !important; }
+.main .sidebarWrapper{width: 20%;  z-index: 11; transition: all 0.3s ease-in-out; background:var(--sidebar-bg) !important; }
 .main .sidebarWrapper.toggle{width: 0%; flex: 0 0 0%;}
 
 .main .sidebarWrapper .sidebar{width: 20%; height: 100vh; max-height: calc(100% - 70px); position:fixed; overflow-y: scroll; overflow-x: hidden; top: 80px; left: 0px; background: var(--sidebar-bg) !important;  border-top: #292929 !important;

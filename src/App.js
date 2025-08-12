@@ -29,6 +29,8 @@ import ResetPassword from "./pages/ResetPassword";
 
 import { Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Button } from "@mui/material";
 import { useNavigate } from "react-router-dom";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 
 const MyContext = createContext();
 
@@ -37,7 +39,7 @@ const AppContent = () => {
     const { token, isAuthenticated } = useAuth();
     const routerLocation = useLocation();
     const navigate = useNavigate();
-    const [isToggleSidebar, setIsToggleSidebar] = useState(true);
+    const [isToggleSidebar, setIsToggleSidebar] = useState(false);
     const [themeMode, setThemeMode] = useState(localStorage.getItem("themeMode") || "light");
     const [openUnauthorizedPopup, setOpenUnauthorizedPopup] = useState(false);
 
@@ -132,7 +134,8 @@ const AppContent = () => {
                         <Route path="/superadmin/profile" element={<ProtectedRoute><AdminProfile /></ProtectedRoute>} />
                         <Route path="/superadmin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                         <Route path="/superadmin/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
-
+                        <Route path="/terms" element={<Terms />} />
+                        <Route path="/privacy" element={<Privacy />} />
                         {/* Redirect unknown routes to Dashboard if logged in, else to login */}
                         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
                     </Routes>

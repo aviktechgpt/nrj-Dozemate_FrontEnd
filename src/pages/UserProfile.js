@@ -147,7 +147,7 @@ const UserProfile = () => {
     formData.append('profileImage', image);
 
     try {
-      const response = await fetch("https://admin.dozemate.com/api/user/profile/image", {
+      const response = await fetch("/api/user/profile/image", {
         method: "PUT",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
@@ -172,7 +172,7 @@ const UserProfile = () => {
 
   const saveProfile = async () => {
     try {
-      const response = await fetch("https://admin.dozemate.com/api/user/profile", {
+      const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -197,7 +197,7 @@ const UserProfile = () => {
 
   const deleteAccount = async () => {
     try {
-      const response = await fetch("https://admin.dozemate.com/api/user/profile", {
+      const response = await fetch("/api/user/profile", {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`
