@@ -19,7 +19,7 @@ const Sidebar = () => {
 
     const handleLogout = () => {
         logout(); // Clears token, role, and user data
-        navigate("/login");
+        navigate('/login', { replace: true, state: { loggedOut: true } });
     };
 
     // User sidebar (original)

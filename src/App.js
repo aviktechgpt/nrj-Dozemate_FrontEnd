@@ -35,13 +35,13 @@ const MyContext = createContext();
 // New component to contain the main application logic
 const AppContent = () => {
     const { token, isAuthenticated } = useAuth();
-    const location = useLocation();
+    const routerLocation = useLocation();
     const navigate = useNavigate();
     const [isToggleSidebar, setIsToggleSidebar] = useState(true);
     const [themeMode, setThemeMode] = useState(localStorage.getItem("themeMode") || "light");
     const [openUnauthorizedPopup, setOpenUnauthorizedPopup] = useState(false);
 
-    const isHideSidebarAndHeader = location.pathname === "/login" || location.pathname === "/signup";
+    const isHideSidebarAndHeader = routerLocation.pathname === "/login" || routerLocation.pathname === "/signup";
 
     useEffect(() => {
         if (themeMode === "light") {
@@ -54,20 +54,24 @@ const AppContent = () => {
     }, [themeMode]);
 
     const ProtectedRoute = ({ children }) => {
-        const { isAuthenticated } = useAuth();
-        const location = useLocation();
-    
+        const { isAuthenticated, authChecked } = useAuth();
+        const loc = useLocation();
+
         useEffect(() => {
-            const isPublicPath = location.pathname === '/login' || location.pathname === '/signup';
-            if (!isAuthenticated && !isPublicPath) {
-                setOpenUnauthorizedPopup(true);
+            const isPublic =
+                routerLocation.pathname === '/login' || routerLocation.pathname === '/signup';
+            const fromLogout = Boolean(routerLocation.state?.loggedOut);
+            if (isPublic || fromLogout) {
+                setOpenUnauthorizedPopup(false);
+                if (fromLogout) navigate('/login', { replace: true, state: {} });
             }
-        }, [isAuthenticated, location.pathname]);
-    
+        }, [routerLocation.pathname, routerLocation.state, navigate]);
+
+        if (!authChecked) return null;                 // wait for AuthContext to load
+
         if (!isAuthenticated) {
-            return null;
+            return <Navigate to="/login" replace />;
         }
-    
         return children;
     };
 
@@ -128,7 +132,7 @@ const AppContent = () => {
                         <Route path="/superadmin/profile" element={<ProtectedRoute><AdminProfile /></ProtectedRoute>} />
                         <Route path="/superadmin/users" element={<ProtectedRoute><UserManagement /></ProtectedRoute>} />
                         <Route path="/superadmin/devices" element={<ProtectedRoute><Devices /></ProtectedRoute>} />
-                        
+
                         {/* Redirect unknown routes to Dashboard if logged in, else to login */}
                         <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
                     </Routes>
@@ -136,7 +140,12 @@ const AppContent = () => {
             </div>
 
             {/* Unauthorized Access Popup */}
-            <Dialog open={openUnauthorizedPopup} onClose={handleClosePopup}>
+            <Dialog open={
+                openUnauthorizedPopup &&
+                !['/login', '/signup'].includes(routerLocation.pathname) &&
+                !routerLocation.state?.loggedOut
+            }
+                onClose={handleClosePopup} >
                 <DialogTitle>Unauthorized Access</DialogTitle>
                 <DialogContent>
                     <DialogContentText>

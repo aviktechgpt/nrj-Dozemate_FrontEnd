@@ -1,26 +1,28 @@
 import { createContext, useContext, useState, useEffect } from "react";
-
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem("token"));
     const [user, setUser] = useState(null);
+    const [authChecked, setAuthChecked] = useState(false);
 
     useEffect(() => {
         // Load authentication data on initial render
-        const storedToken = localStorage.getItem("token");
+        const raw = localStorage.getItem("token");
+        const storedToken = raw && raw !== "undefined" && raw !== "null" ? raw : null;
+
         const storedUserRole = localStorage.getItem("userRole");
         const storedUserData = localStorage.getItem("userData");
-        
+
         if (storedToken) {
             setToken(storedToken);
-            
+
             // Set user data if available
             if (storedUserData) {
                 try {
-                    setUser(JSON.parse(storedUserData));
-                } catch (e) {
-                    // If JSON parsing fails, create minimal user object with role
+                    const parsed = JSON.parse(storedUserData);
+                    setUser({ ...parsed, role: parsed.role || storedUserRole || "user" });
+                } catch {
                     setUser({ role: storedUserRole || "user" });
                 }
             } else if (storedUserRole) {
@@ -28,19 +30,29 @@ export const AuthProvider = ({ children }) => {
                 setUser({ role: storedUserRole });
             }
         }
+        else {
+            setToken(null);
+            setUser(null);
+        }
+
+        setAuthChecked(true); // <-- mark ready
     }, []);
 
     const login = (newToken, userData, userRole) => {
         // Store token
         localStorage.setItem("token", newToken);
         setToken(newToken);
-        
+
+        localStorage.setItem('user', JSON.stringify(user));
+
         // Store role
         const role = userData?.role || userRole || "user";
         localStorage.setItem("userRole", role);
-        
+
+
         // Store user data if provided
         if (userData) {
+            const toStore = { ...userData, role };
             localStorage.setItem("userData", JSON.stringify({
                 ...userData,
                 role // Ensure role is included in userData
@@ -65,13 +77,14 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ 
-            token, 
-            login, 
-            logout, 
+        <AuthContext.Provider value={{
+            token,
             user,
-            role: getRole(), 
-            isAuthenticated: !!token
+            role: getRole(),
+            isAuthenticated: !!token,
+            authChecked,             // <-- expose
+            login,
+            logout,
         }}>
             {children}
         </AuthContext.Provider>

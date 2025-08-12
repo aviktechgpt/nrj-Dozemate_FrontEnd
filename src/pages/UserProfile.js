@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { OutlinedInput } from '@mui/material';
+
 import {
   Container,
   Paper,
@@ -24,12 +26,12 @@ import {
   InputAdornment
 } from '@mui/material';
 
-import { 
-  Edit, 
-  Save, 
-  Delete, 
-  UploadFile, 
-  Person, 
+import {
+  Edit,
+  Save,
+  Delete,
+  UploadFile,
+  Person,
   Warning,
   MonitorWeight,
   Height,
@@ -44,12 +46,25 @@ const UserProfile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(true);
   const [formData, setFormData] = useState({});
   const [image, setImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [message, setMessage] = useState({ text: '', type: 'info' });
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const dobValue = formData.dateOfBirth
+    ? (typeof formData.dateOfBirth === 'string'
+      ? formData.dateOfBirth.slice(0, 10)
+      : new Date(formData.dateOfBirth).toISOString().slice(0, 10))
+    : '';
+
+  const imgSrc = previewImage || (profile?.profileImage
+    ? (profile.profileImage.startsWith('http')
+      ? profile.profileImage
+      : `https://admin.dozemate.com${profile.profileImage}`)
+    : undefined);
 
   useEffect(() => {
     fetchUserProfile();
@@ -106,12 +121,24 @@ const UserProfile = () => {
   };
 
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const selectedImage = e.target.files[0];
-      setImage(selectedImage);
-      setPreviewImage(URL.createObjectURL(selectedImage));
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setMessage({ text: 'Please upload an image file (jpg, png, webp).', type: 'error' });
+      setImage(null); setPreviewImage(null);
+      return;
     }
+    if (file.size > 1024 * 1024) { // 1MB
+      setMessage({ text: 'Image must be 1MB or smaller.', type: 'error' });
+      setImage(null); setPreviewImage(null);
+      return;
+    }
+    setMessage({ text: '', type: 'info' });
+    setImage(file);
+    setPreviewImage(URL.createObjectURL(file));
   };
+
 
   const uploadImage = async () => {
     if (!image) return;
@@ -131,6 +158,8 @@ const UserProfile = () => {
       const data = await response.json();
       if (response.ok) {
         setMessage({ text: "Profile image updated successfully", type: "success" });
+        setImage(null);
+        setPreviewImage(null);
         fetchUserProfile();
       } else {
         setMessage({ text: data.message || "Error updating profile image", type: "error" });
@@ -198,7 +227,7 @@ const UserProfile = () => {
       </Box>
     );
   }
-  
+
   if (error) {
     return (
       <Container maxWidth="md" className="profile-container">
@@ -206,7 +235,7 @@ const UserProfile = () => {
       </Container>
     );
   }
-  
+
   if (!profile) {
     return (
       <Container maxWidth="md" className="profile-container">
@@ -219,18 +248,18 @@ const UserProfile = () => {
     <Container maxWidth="md" className="profile-container">
       <Box className="page-header">
         <Typography variant="h4" component="h1" className="profile-title">
-          <Person className="profile-icon" /> 
+          <Person className="profile-icon" />
           User Profile
         </Typography>
         <Typography variant="subtitle1" className="profile-subtitle">
           Manage your personal information and account settings
         </Typography>
       </Box>
-      
+
       {message.text && (
-        <Alert 
-          severity={message.type} 
-          className="profile-alert" 
+        <Alert
+          severity={message.type}
+          className="profile-alert"
           onClose={() => setMessage({ text: '', type: 'info' })}
         >
           {message.text}
@@ -241,25 +270,22 @@ const UserProfile = () => {
         <Box className="profile-avatar-section">
           <Grid container spacing={2} alignItems="center">
             <Grid item>
-              <Avatar 
-                src={previewImage || (profile.profileImage && `https://admin.dozemate.com${profile.profileImage}`)} 
-                alt={profile.name} 
-                sx={{ width: 100, height: 100 }}
-              />
+              <Avatar src={imgSrc} alt={profile.name} sx={{ width: 100, height: 100 }} />
+
             </Grid>
             <Grid item xs>
               <Typography variant="h4" className="profile-name">{profile.name}</Typography>
               <Typography variant="subtitle1" className="profile-email">{profile.email}</Typography>
-              <Chip 
-                label={profile.role || "User"} 
-                className="profile-role" 
-                size="small" 
+              <Chip
+                label={profile.role || "User"}
+                className="profile-role"
+                size="small"
               />
             </Grid>
             <Grid item className="edit-profile-button-container">
               {!editMode ? (
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   startIcon={<Edit />}
                   onClick={() => setEditMode(true)}
                   className="edit-button"
@@ -267,8 +293,8 @@ const UserProfile = () => {
                   Edit Profile
                 </Button>
               ) : (
-                <Button 
-                  variant="contained" 
+                <Button
+                  variant="contained"
                   startIcon={<Save />}
                   onClick={saveProfile}
                   className="save-button"
@@ -289,8 +315,8 @@ const UserProfile = () => {
                 onChange={handleImageChange}
               />
               <label htmlFor="profile-image-input">
-                <Button 
-                  variant="outlined" 
+                <Button
+                  variant="outlined"
                   component="span"
                   startIcon={<UploadFile />}
                   className="image-upload-button"
@@ -299,7 +325,7 @@ const UserProfile = () => {
                 </Button>
               </label>
               {image && (
-                <Button 
+                <Button
                   variant="contained"
                   onClick={uploadImage}
                   className="upload-button"
@@ -312,7 +338,7 @@ const UserProfile = () => {
         </Box>
 
         <Divider className="profile-divider" />
-        
+
         <Box className="profile-sections">
           <Typography variant="h6" className="section-heading">
             Personal Information
@@ -342,7 +368,7 @@ const UserProfile = () => {
                 variant="outlined"
               />
             </Grid>
-            
+
             <Grid item xs={12} sm={6}>
               <TextField
                 fullWidth
@@ -356,27 +382,21 @@ const UserProfile = () => {
               />
             </Grid>
             <Grid item xs={12} sm={6}>
-            <TextField
-    fullWidth
-    label="Date of Birth"
-    name="dateOfBirth"
-    type="date"
-    value={formData.dateOfBirth ? formData.dateOfBirth.substring(0, 10) : ''}
-    onChange={handleChange}
-    disabled={!editMode}
-    className="MuiTextField-root"
-    variant="outlined"
-    InputProps={{
-      startAdornment: (
-        <InputAdornment position="start">
-          <Cake />
-        </InputAdornment>
-      )
-    }}
-    InputLabelProps={{
-      shrink: true,
-    }}
-  />
+              <TextField
+                fullWidth
+                label="Date of Birth"
+                name="dateOfBirth"
+                type="date"
+                value={dobValue}
+                onChange={handleChange}
+                disabled={!editMode}
+
+                className="MuiTextField-root"
+                variant="outlined"
+                inputProps={{ max: todayStr }}
+                InputProps={{ startAdornment: <InputAdornment position="start"><Cake /></InputAdornment> }}
+                InputLabelProps={{ shrink: true }}
+              />
             </Grid>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth disabled={!editMode} className="MuiFormControl-root">
@@ -388,20 +408,23 @@ const UserProfile = () => {
                   value={formData.gender || ''}
                   onChange={handleChange}
                   label="Gender"
-                  startAdornment={
-                    <InputAdornment position="start">
-                      <Wc />
-                    </InputAdornment>
+                  input={
+                    <OutlinedInput
+                      startAdornment={
+                        <InputAdornment position="start">
+                          <Wc />
+                        </InputAdornment>
+                      }
+                    />
                   }
                 >
-                  <MenuItem value="">
-                    <em>Select</em>
-                  </MenuItem>
-                  <MenuItem value="male">Male</MenuItem>
+                  <MenuItem value=""><em>Select</em></MenuItem>
                   <MenuItem value="female">Female</MenuItem>
+                  <MenuItem value="male">Male</MenuItem>
                   <MenuItem value="other">Other</MenuItem>
                   <MenuItem value="prefer-not-to-say">Prefer not to say</MenuItem>
                 </Select>
+
               </FormControl>
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -428,9 +451,9 @@ const UserProfile = () => {
                 variant="outlined"
               />
             </Grid>
-            
+
           </Grid>
-        
+
           <Typography variant="h6" className="section-heading" sx={{ mt: 4 }}>
             Health Information
           </Typography>
@@ -446,14 +469,7 @@ const UserProfile = () => {
                 disabled={!editMode}
                 className="MuiTextField-root"
                 variant="outlined"
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">kg</InputAdornment>,
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <MonitorWeight />
-                    </InputAdornment>
-                  )
-                }}
+                inputProps={{ min: 5, step: "0.1" }}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
@@ -467,14 +483,7 @@ const UserProfile = () => {
                 disabled={!editMode}
                 className="MuiTextField-root"
                 variant="outlined"
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">cm</InputAdornment>,
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Height />
-                    </InputAdornment>
-                  )
-                }}
+                inputProps={{ min: 25.4, step: "0.1" }}
               />
             </Grid>
             <Grid item xs={12} sm={4}>
@@ -488,14 +497,7 @@ const UserProfile = () => {
                 disabled={!editMode}
                 className="MuiTextField-root"
                 variant="outlined"
-                InputProps={{
-                  endAdornment: <InputAdornment position="end">cm</InputAdornment>,
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Straighten />
-                    </InputAdornment>
-                  )
-                }}
+                inputProps={{ min: 12.7, step: "0.1" }}
               />
             </Grid>
           </Grid>
@@ -504,8 +506,8 @@ const UserProfile = () => {
         {editMode && <Divider className="profile-divider" />}
 
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'flex-end' }}>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<Delete />}
             onClick={() => setDeleteDialogOpen(true)}
             className="delete-button"
@@ -532,14 +534,14 @@ const UserProfile = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions className="delete-dialog-actions">
-          <Button 
+          <Button
             onClick={() => setDeleteDialogOpen(false)}
             className="cancel-dialog-button"
           >
             Cancel
           </Button>
-          <Button 
-            onClick={deleteAccount} 
+          <Button
+            onClick={deleteAccount}
             className="confirm-delete-button"
             autoFocus
           >

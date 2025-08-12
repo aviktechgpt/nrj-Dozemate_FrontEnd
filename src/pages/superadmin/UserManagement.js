@@ -85,6 +85,51 @@ const UserManagement = () => {
   // Auth context
   const { token } = useAuth();
 
+  
+// ─ Units for Health Information
+const [units, setUnits] = useState({
+  weight: 'kg',   // 'kg' | 'lb'
+  height: 'cm',   // 'cm' | 'in'
+  waist: 'cm',   // 'cm' | 'in'
+});
+
+// Helpers
+const kgToLb = (kg) => kg * 2.2046226218;
+const lbToKg = (lb) => lb / 2.2046226218;
+const cmToIn = (cm) => cm / 2.54;
+const inToCm = (inch) => inch * 2.54;
+
+// Convert the existing numeric value when unit changes
+const handleUnitChange = (field, newUnit) => {
+  setUnits((prev) => {
+    const prevUnit = prev[field];
+    if (prevUnit === newUnit) return prev;
+
+    setFormData((f) => {
+      const raw = parseFloat(f[field]);
+      if (Number.isNaN(raw)) return f;
+
+      let base; // store internally in metric (kg/cm)
+      if (field === 'weight') {
+        base = prevUnit === 'kg' ? raw : lbToKg(raw);
+        return { ...f, weight: newUnit === 'kg' ? +base.toFixed(1) : +kgToLb(base).toFixed(1) };
+      }
+      if (field === 'height') {
+        base = prevUnit === 'cm' ? raw : inToCm(raw);
+        return { ...f, height: newUnit === 'cm' ? +base.toFixed(1) : +cmToIn(base).toFixed(1) };
+      }
+      if (field === 'waist') {
+        base = prevUnit === 'cm' ? raw : inToCm(raw);
+        return { ...f, waist: newUnit === 'cm' ? +base.toFixed(1) : +cmToIn(base).toFixed(1) };
+      }
+      return f;
+    });
+
+    return { ...prev, [field]: newUnit };
+  });
+};
+
+
   // Fetch organizations on component mount
   useEffect(() => {
     fetchOrganizations();
@@ -219,6 +264,11 @@ const UserManagement = () => {
 
   // Function to open add user dialog
   const openAddDialog = () => {
+
+    const twentyYearsAgoJan1 = new Date();
+    twentyYearsAgoJan1.setFullYear(twentyYearsAgoJan1.getFullYear() - 20, 0, 1);
+
+
     setFormData({
       name: '',
       email: '',
@@ -228,14 +278,17 @@ const UserManagement = () => {
       pincode: '',
       mobile: '',
       organizationId: '',
-      dateOfBirth: null,
+      dateOfBirth: twentyYearsAgoJan1,   // default as requested
       gender: '',
-      weight: '',
-      height: '',
-      waist: '',
+      // defaults (convert to current selected units)
+      weight: units.weight === 'kg' ? 50 : 110,
+      height: units.height === 'cm' ? 160 : 63,
+      waist: units.waist === 'cm' ? 83 : 33,
       country: '',
-      countryCode: ''
+      countryCode: '',
+      deviceId: ''
     });
+
     setFormError('');
     setAddDialogOpen(true);
   };
@@ -258,6 +311,16 @@ const UserManagement = () => {
   };
   // Function to validate form data
   const validateForm = () => {
+
+    if (formData.dateOfBirth) {
+      const dob = new Date(formData.dateOfBirth);
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      if (dob > today) {
+        setFormError('Date of birth cannot be in the future');
+        return false;
+      }
+    }
+
     if (!formData.name || !formData.email || !formData.password ||
       !formData.address || !formData.pincode || !formData.mobile ||
       !formData.organizationId) {
@@ -297,6 +360,35 @@ const UserManagement = () => {
       setFormError('Please enter a valid Device ID');
       return false;
     }
+
+    // Normalize to metric for validation
+    const weightKg = formData.weight ?
+      (units.weight === 'kg' ? parseFloat(formData.weight) : lbToKg(parseFloat(formData.weight))) : null;
+    const heightCm = formData.height ?
+      (units.height === 'cm' ? parseFloat(formData.height) : inToCm(parseFloat(formData.height))) : null;
+    const waistCm = formData.waist ?
+      (units.waist === 'cm' ? parseFloat(formData.waist) : inToCm(parseFloat(formData.waist))) : null;
+
+    // Basic non-negative checks
+    if ([weightKg, heightCm, waistCm].some(v => v !== null && v < 0)) {
+      setFormError('Health values cannot be negative');
+      return false;
+    }
+
+    // Client-specified mins
+    if (weightKg !== null && weightKg < 5) {
+      setFormError('Weight must be at least 5 kg');
+      return false;
+    }
+    if (heightCm !== null && heightCm < inToCm(10)) { // 10 inches
+      setFormError('Height must be at least 10 inches');
+      return false;
+    }
+    if (waistCm !== null && waistCm < inToCm(5)) { // 5 inches
+      setFormError('Waist must be at least 5 inches');
+      return false;
+    }
+
     return true;
   };
 
@@ -322,8 +414,19 @@ const UserManagement = () => {
         }
       }
 
+      // Normalize to metric for backend
+      const weightKgSend = formData.weight ?
+        (units.weight === 'kg' ? parseFloat(formData.weight) : lbToKg(parseFloat(formData.weight))) : undefined;
+      const heightCmSend = formData.height ?
+        (units.height === 'cm' ? parseFloat(formData.height) : inToCm(parseFloat(formData.height))) : undefined;
+      const waistCmSend = formData.waist ?
+        (units.waist === 'cm' ? parseFloat(formData.waist) : inToCm(parseFloat(formData.waist))) : undefined;
+
       const dataToSend = {
         ...formData,
+        weight: weightKgSend,
+        height: heightCmSend,
+        waist: waistCmSend,
         devices: deviceObjectIds,
         role: deviceObjectIds.length > 1 ? 'admin' : 'user',
       };
@@ -770,7 +873,7 @@ const UserManagement = () => {
         </DialogTitle>
         <DialogContent >
           <form id="add-user-form" onSubmit={handleSubmit}>
-            <Grid spacing={2} sx={{ mt: 1, p: 1 }}>
+            <Grid container spacing={2} sx={{ mt: 1, p: 1 }}>
               {/* Personal Information Section */}
               <Grid item xs={12}>
                 <Typography
@@ -830,13 +933,8 @@ const UserManagement = () => {
                       label="Date of Birth"
                       value={formData.dateOfBirth}
                       onChange={handleDateChange}
-                      renderInput={(params) => (
-                        <TextField
-                          {...params}
-                          fullWidth
-                          InputProps={{ sx: { borderRadius: '8px' } }}
-                        />
-                      )}
+                      maxDate={new Date()}  // <-- no future DOB
+                      slotProps={{ textField: { fullWidth: true, InputProps: { sx: { borderRadius: '8px' } } } }}
                     />
                   </LocalizationProvider>
                 </Grid>
@@ -852,8 +950,8 @@ const UserManagement = () => {
                     value={formData.gender}
                     onChange={handleChange}
                   >
-                    <FormControlLabel value="male" control={<Radio />} label="Male" />
                     <FormControlLabel value="female" control={<Radio />} label="Female" />
+                    <FormControlLabel value="male" control={<Radio />} label="Male" />
                     <FormControlLabel value="other" control={<Radio />} label="Other" />
                     <FormControlLabel value="prefer-not-to-say" control={<Radio />} label="Prefer not to say" />
                   </RadioGroup>
@@ -926,58 +1024,103 @@ const UserManagement = () => {
                 </Typography>
               </Grid>
               <Grid container spacing={7}>
+                {/* Weight */}
                 <Grid item xs={12} md={4}>
-                  <TextField
-                    name="weight"
-                    label="Weight (kg)"
-                    type="number"
-                    inputProps={{ step: "0.1" }}
-                    value={formData.weight}
-                    onChange={handleChange}
-                    fullWidth
-                    InputProps={{ sx: { borderRadius: '8px' } }}
-                  />
+                  <Grid container spacing={1}>
+                    <Grid item xs={8}>
+                      <TextField
+                        name="weight"
+                        label={`Weight (${units.weight})`}
+                        type="number"
+                        inputProps={{ step: '0.1', min: 0 }}
+                        value={formData.weight}
+                        onChange={handleChange}
+                        fullWidth
+                        InputProps={{ sx: { borderRadius: '8px' } }}
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          label="Unit"
+                          value={units.weight}
+                          onChange={(e) => handleUnitChange('weight', e.target.value)}
+                        >
+                          <MenuItem value="kg">kg</MenuItem>
+                          <MenuItem value="lb">lb</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
                 </Grid>
+
+                {/* Height */}
                 <Grid item xs={12} md={4}>
-                  <TextField
-                    name="height"
-                    label="Height (cm)"
-                    type="number"
-                    value={formData.height}
-                    onChange={handleChange}
-                    fullWidth
-                    InputProps={{ sx: { borderRadius: '8px' } }}
-                  />
-                </Grid></Grid>
-              <Grid container spacing={7}>
+                  <Grid container spacing={1}>
+                    <Grid item xs={8}>
+                      <TextField
+                        name="height"
+                        label={`Height (${units.height})`}
+                        type="number"
+                        inputProps={{ step: '0.1', min: 0 }}
+                        value={formData.height}
+                        onChange={handleChange}
+                        fullWidth
+                        InputProps={{ sx: { borderRadius: '8px' } }}
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          label="Unit"
+                          value={units.height}
+                          onChange={(e) => handleUnitChange('height', e.target.value)}
+                        >
+                          <MenuItem value="cm">cm</MenuItem>
+                          <MenuItem value="in">inch</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Grid>
+
+                {/* Waist */}
                 <Grid item xs={12} md={4}>
-                  <TextField
-                    name="waist"
-                    label="Waist (cm)"
-                    type="number"
-                    value={formData.waist}
-                    onChange={handleChange}
-                    fullWidth
-                    InputProps={{ sx: { borderRadius: '8px' } }}
-                  />
-                </Grid></Grid>
+                  <Grid container spacing={1}>
+                    <Grid item xs={8}>
+                      <TextField
+                        name="waist"
+                        label={`Waist (${units.waist})`}
+                        type="number"
+                        inputProps={{ step: '0.1', min: 0 }}
+                        value={formData.waist}
+                        onChange={handleChange}
+                        fullWidth
+                        InputProps={{ sx: { borderRadius: '8px' } }}
+                      />
+                    </Grid>
+                    <Grid item xs={4}>
+                      <FormControl fullWidth>
+                        <InputLabel>Unit</InputLabel>
+                        <Select
+                          label="Unit"
+                          value={units.waist}
+                          onChange={(e) => handleUnitChange('waist', e.target.value)}
+                        >
+                          <MenuItem value="cm">cm</MenuItem>
+                          <MenuItem value="in">inch</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                  </Grid>
+                </Grid>
+              </Grid>
+
               {/* Organization & Security Section */}
               <Grid item xs={12}>
                 <Typography variant="h6" color="primary" fontWeight={600} sx={{ borderBottom: '2px solid #1976d2', pb: 1 }} > Organization & Security </Typography>
-              </Grid>
-              <Grid container spacing={2} sx={{ mt: 1 }}>
-                <Grid item xs={12} sm={6}>
-                  <TextField
-                    label="Organization"
-                    value={
-                      selectedUser?.organizationId
-                        ? organizations.find((org) => org._id === selectedUser.organizationId)?.name || 'Unknown'
-                        : 'Individual'
-                    }
-                    fullWidth
-                    InputProps={{ readOnly: true }}
-                  />
-                </Grid>
               </Grid>
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required error={formError && !formData.organizationId} >
