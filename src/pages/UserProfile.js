@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { OutlinedInput } from '@mui/material';
+import { useAuth } from '../contexts/AuthContext';
 
 import {
   Container,
@@ -41,7 +42,7 @@ import {
 } from '@mui/icons-material';
 
 import './UserProfile.css';
-
+const API_BASE = "/api";
 const UserProfile = () => {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -52,7 +53,8 @@ const UserProfile = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [message, setMessage] = useState({ text: '', type: 'info' });
-
+  const { setUser, bumpAvatarVersion } = useAuth();
+  const inFlight = useRef(false);
   const todayStr = new Date().toISOString().slice(0, 10);
   const dobValue = formData.dateOfBirth
     ? (typeof formData.dateOfBirth === 'string'
@@ -66,17 +68,14 @@ const UserProfile = () => {
       : `https://admin.dozemate.com${profile.profileImage}`)
     : undefined);
 
-  useEffect(() => {
-    fetchUserProfile();
-  }, []);
+  const fetchUserProfile = useCallback(async () => {
+    if (inFlight.current) return;        // guard against double-call (StrictMode etc.)
+    inFlight.current = true;
 
-  const fetchUserProfile = async () => {
     setLoading(true);
     try {
-      const response = await fetch("https://admin.dozemate.com/api/user/profile", {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+      const response = await fetch(`${API_BASE}/user/profile`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
 
       const data = await response.json();
@@ -95,16 +94,23 @@ const UserProfile = () => {
           weight: data.data.weight || "",
           height: data.data.height || ""
         });
+        // IMPORTANT: don't call setUser here — it can remount the tree and retrigger the effect
       } else {
-        setError(data.message);
+        setError(data.message || "Failed to load profile");
       }
     } catch (err) {
       console.error("Error fetching profile:", err);
       setError("Failed to load profile");
     } finally {
       setLoading(false);
+      inFlight.current = false;
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [fetchUserProfile]);
+
 
   const handleChange = (e) => {
     setFormData({
@@ -140,69 +146,192 @@ const UserProfile = () => {
   };
 
 
+  const fileToBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result); // data:<mime>;base64,....
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+
   const uploadImage = async () => {
     if (!image) return;
+    const token = localStorage.getItem("token");
 
-    const formData = new FormData();
-    formData.append('profileImage', image);
+    const logAttempt = async (res) => {
+      const type = res.headers.get("content-type") || "";
+      const body = type.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : await res.text().catch(() => "");
+      console.log("UPLOAD →", res.url, res.status, res.statusText, body);
+      return body;
+    };
 
-    try {
-      const response = await fetch("/api/user/profile/image", {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        },
-        body: formData
-      });
+    // 1) Try common dedicated endpoints with FormData
+    const endpoints = [
+      "/user/profile/image",
+      "/user/profile/avatar",
+      "/user/profile/photo",
+      "/user/avatar",
+      "/user/photo",
+      "/user/picture",
+    ];
+    const verbs = ["POST", "PUT", "PATCH"];
+    const fieldNames = ["profileImage", "image", "avatar", "photo", "file"];
 
-      const data = await response.json();
-      if (response.ok) {
-        setMessage({ text: "Profile image updated successfully", type: "success" });
-        setImage(null);
-        setPreviewImage(null);
-        fetchUserProfile();
-      } else {
-        setMessage({ text: data.message || "Error updating profile image", type: "error" });
+    for (const ep of endpoints) {
+      for (const method of verbs) {
+        for (const field of fieldNames) {
+          const fd = new FormData();
+          fd.append(field, image);
+          try {
+            const res = await fetch(`${API_BASE}${ep}`, {
+              method,
+              headers: { Authorization: `Bearer ${token}` },
+              body: fd,
+            });
+            const resBody = await logAttempt(res);
+            if (res.ok) {
+              setMessage({ text: "Profile image updated successfully", type: "success" });
+              setImage(null); setPreviewImage(null);
+
+              // If API returned the updated user, merge it; otherwise just bump version
+              if (resBody && typeof resBody === "object" && resBody.data) {
+                setUser?.(prev => ({ ...prev, ...resBody.data, avatarVersion: Date.now() }));
+              } else {
+                bumpAvatarVersion?.();
+              }
+
+              await fetchUserProfile();
+              return;
+            }
+            if (res.status === 404) break; // try next endpoint
+          } catch (e) {
+            console.warn("Attempt failed:", method, ep, field, e);
+          }
+        }
       }
-    } catch (err) {
-      console.error("Error uploading image:", err);
-      setMessage({ text: "Failed to upload image", type: "error" });
     }
+
+    // 2) Fallback: send base64 JSON to /user/profile
+    try {
+      const dataUrl = await fileToBase64(image);
+      const payloadCandidates = [
+        { profileImage: dataUrl },
+        { image: dataUrl },
+        { avatar: dataUrl },
+        { photo: dataUrl },
+        { picture: dataUrl },
+        { profileImageBase64: dataUrl },
+      ];
+      for (const payload of payloadCandidates) {
+        const res = await fetch(`${API_BASE}/user/profile`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        });
+        const resBody = await logAttempt(res);
+        if (res.ok) {
+          setMessage({ text: "Profile image updated successfully", type: "success" });
+          setImage(null); setPreviewImage(null);
+
+          if (resBody && typeof resBody === "object" && resBody.data) {
+            setUser?.(prev => ({ ...prev, ...resBody.data, avatarVersion: Date.now() }));
+          } else {
+            bumpAvatarVersion?.();
+          }
+
+          await fetchUserProfile();
+          return;
+        }
+        if (res.status === 404) break;
+      }
+    } catch (e) {
+      console.error("Base64 fallback failed:", e);
+    }
+
+    setMessage({
+      text: "Upload failed (route not found or payload rejected). Check API docs for the correct endpoint/field.",
+      type: "error",
+    });
   };
 
+
+  // helpers
+  const safeTrim = (v) =>
+    v === undefined || v === null ? undefined : String(v).trim();
+
+  const numOrUndef = (v) =>
+    v === '' || v === undefined || v === null ? undefined : Number(v);
+
   const saveProfile = async () => {
+    const token = localStorage.getItem("token");
+
+    // normalize payload safely
+    const payload = {
+      name: safeTrim(formData.name),
+      email: safeTrim(formData.email),
+      mobile: safeTrim(formData.mobile),        // <— no .trim() on a number
+      address: safeTrim(formData.address),
+      pincode: safeTrim(formData.pincode),
+      dateOfBirth:
+        formData.dateOfBirth && formData.dateOfBirth !== ''
+          ? (typeof formData.dateOfBirth === 'string'
+            ? formData.dateOfBirth.slice(0, 10)
+            : new Date(formData.dateOfBirth).toISOString().slice(0, 10))
+          : null,                                // send null to clear, or remove if you prefer
+      gender: formData.gender ?? null,
+      weight: numOrUndef(formData.weight),
+      height: numOrUndef(formData.height),
+      waist: numOrUndef(formData.waist),
+    };
+
+    // remove only undefined keys (keep nulls if you want to clear fields server-side)
+    Object.keys(payload).forEach((k) => payload[k] === undefined && delete payload[k]);
+
     try {
-      const response = await fetch("/api/user/profile", {
-        method: "PUT",
+      const res = await fetch(`/api/user/profile`, {
+        method: "PUT",                            // use PUT (not POST)
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`
+          Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
-      if (response.ok) {
+      const type = res.headers.get("content-type") || "";
+      const body = type.includes("application/json")
+        ? await res.json().catch(() => ({}))
+        : await res.text().catch(() => "");
+
+      if (res.ok) {
         setMessage({ text: "Profile updated successfully", type: "success" });
         setEditMode(false);
-        fetchUserProfile();
+        await fetchUserProfile();
       } else {
-        setMessage({ text: data.message || "Error updating profile", type: "error" });
+        const msg =
+          (typeof body === "object" && (body.message || body.error)) ||
+          (typeof body === "string" && body) ||
+          `HTTP ${res.status}`;
+        console.log("SAVE →", res.status, res.statusText, body);
+        setMessage({ text: `Failed to save profile: ${msg}`, type: "error" });
       }
-    } catch (err) {
-      console.error("Error saving profile:", err);
-      setMessage({ text: "Failed to save profile", type: "error" });
+    } catch (e) {
+      console.error(e);
+      setMessage({ text: "Failed to save profile (network error)", type: "error" });
     }
   };
 
   const deleteAccount = async () => {
     try {
-      const response = await fetch("/api/user/profile", {
+      const response = await fetch(`${API_BASE}/user/profile`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`
-        }
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
+
 
       if (response.ok) {
         // Clear localStorage and redirect to login page

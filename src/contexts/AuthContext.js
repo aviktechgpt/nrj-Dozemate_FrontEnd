@@ -1,94 +1,85 @@
-import { createContext, useContext, useState, useEffect } from "react";
-const AuthContext = createContext();
+// contexts/AuthContext.js
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
+
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [token, setToken] = useState(localStorage.getItem("token"));
-    const [user, setUser] = useState(null);
-    const [authChecked, setAuthChecked] = useState(false);
+  // init from localStorage once
+  const [token, setToken] = useState(() => {
+    const raw = localStorage.getItem("token");
+    return raw && raw !== "undefined" && raw !== "null" ? raw : null;
+  });
 
-    useEffect(() => {
-        // Load authentication data on initial render
-        const raw = localStorage.getItem("token");
-        const storedToken = raw && raw !== "undefined" && raw !== "null" ? raw : null;
+  const [userState, setUserState] = useState(() => {
+    const role = localStorage.getItem("userRole") || "user";
+    const raw = localStorage.getItem("userData");
+    if (!raw) return { role };
+    try {
+      const u = JSON.parse(raw);
+      return { ...u, role: u.role || role };
+    } catch {
+      return { role };
+    }
+  });
 
-        const storedUserRole = localStorage.getItem("userRole");
-        const storedUserData = localStorage.getItem("userData");
+  const [authChecked, setAuthChecked] = useState(false);
+  useEffect(() => { setAuthChecked(true); }, []);
 
-        if (storedToken) {
-            setToken(storedToken);
-
-            // Set user data if available
-            if (storedUserData) {
-                try {
-                    const parsed = JSON.parse(storedUserData);
-                    setUser({ ...parsed, role: parsed.role || storedUserRole || "user" });
-                } catch {
-                    setUser({ role: storedUserRole || "user" });
-                }
-            } else if (storedUserRole) {
-                // If only role is available (no user data)
-                setUser({ role: storedUserRole });
-            }
-        }
-        else {
-            setToken(null);
-            setUser(null);
-        }
-
-        setAuthChecked(true); // <-- mark ready
-    }, []);
-
-    const login = (newToken, userData, userRole) => {
-        // Store token
-        localStorage.setItem("token", newToken);
-        setToken(newToken);
-
-        localStorage.setItem('user', JSON.stringify(user));
-
-        // Store role
-        const role = userData?.role || userRole || "user";
-        localStorage.setItem("userRole", role);
-
-
-        // Store user data if provided
-        if (userData) {
-            const toStore = { ...userData, role };
-            localStorage.setItem("userData", JSON.stringify({
-                ...userData,
-                role // Ensure role is included in userData
-            }));
-            setUser({ ...userData, role });
-        } else {
-            setUser({ role });
-        }
-    };
-
-    const logout = () => {
-        // Clear all auth data
-        localStorage.removeItem("token");
-        localStorage.removeItem("userRole");
+  // helper that also persists to localStorage
+  const setUser = useCallback((updater) => {
+    setUserState(prev => {
+      const next = typeof updater === "function" ? updater(prev) : updater;
+      if (next) {
+        localStorage.setItem("userData", JSON.stringify(next));
+        if (next.role) localStorage.setItem("userRole", next.role);
+      } else {
         localStorage.removeItem("userData");
-        setToken(null);
-        setUser(null);
-    };
+      }
+      return next;
+    });
+  }, []);
 
-    const getRole = () => {
-        return user?.role || localStorage.getItem("userRole") || "user";
-    };
+  const login = (newToken, userData, userRole) => {
+    localStorage.setItem("token", newToken);
+    setToken(newToken);
 
-    return (
-        <AuthContext.Provider value={{
-            token,
-            user,
-            role: getRole(),
-            isAuthenticated: !!token,
-            authChecked,             // <-- expose
-            login,
-            logout,
-        }}>
-            {children}
-        </AuthContext.Provider>
-    );
+    const role = userData?.role || userRole || "user";
+    const nextUser = userData ? { ...userData, role } : { role };
+
+    localStorage.setItem("userRole", role);
+    localStorage.setItem("userData", JSON.stringify(nextUser)); // <-- correct key
+    setUserState(nextUser);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userRole");
+    localStorage.removeItem("userData");
+    setToken(null);
+    setUserState(null);
+  };
+
+  const getRole = () => userState?.role || localStorage.getItem("userRole") || "user";
+  const bumpAvatarVersion = () =>
+    setUser(prev => (prev ? { ...prev, avatarVersion: Date.now() } : prev));
+
+  return (
+    <AuthContext.Provider
+      value={{
+        token,
+        user: userState,
+        setUser,               // <-- expose this
+        bumpAvatarVersion,     // handy for forcing avatar refresh
+        role: getRole(),
+        isAuthenticated: !!token,
+        authChecked,
+        login,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);
