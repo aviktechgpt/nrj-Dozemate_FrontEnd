@@ -182,25 +182,32 @@ const Dashboard = React.memo(() => {
 
     const loadLiveChartData = async () => {
         const token = localStorage.getItem("token");
-        const deviceId = "2"; // Replace with dynamic ID if needed
+        const deviceId = "Nish321"; // Replace with dynamic ID if needed
 
         const now = new Date();
-        const dummyData = Array.from({ length: 10 }, (_, i) => {
-            const timestamp = new Date(now.getTime() - (9 - i) * 3 * 60 * 1000);
-            return {
-                timestamp: timestamp.toISOString(),
-                heartRate: 60 + Math.floor(Math.random() * 40),
-                respiration: 12 + Math.floor(Math.random() * 8),
-                temperature: 97 + Math.random() * 2,
-                eco2: 400 + Math.floor(Math.random() * 200),
-                humidity: 30 + Math.floor(Math.random() * 30),
-                iaq: 50 + Math.floor(Math.random() * 100),
-                tvoc: parseFloat((0.1 + Math.random() * 0.3).toFixed(2)),
-                etoh: parseFloat((0.05 + Math.random() * 0.1).toFixed(2)),
-                hrv: 50 + Math.floor(Math.random() * 20),
-                stress: 10 + Math.floor(Math.random() * 10),
-            };
-        });
+        const dummyData = await fetchHealthData(
+            deviceId,
+            token,
+            { rangeMinutes: 60, bucketMinutes: 10 }  // <-- last 1h in 10-min buckets
+        );
+
+        console.log("Fetched live chart data:", dummyData); // Debug log
+        // Array.from({ length: 10 }, (_, i) => {
+        //     const timestamp = new Date(now.getTime() - (9 - i) * 3 * 60 * 1000);
+        //     return {
+        //         timestamp: timestamp.toISOString(),
+        //         heartRate: 60 + Math.floor(Math.random() * 40),
+        //         respiration: 12 + Math.floor(Math.random() * 8),
+        //         temperature: 97 + Math.random() * 2,
+        //         eco2: 400 + Math.floor(Math.random() * 200),
+        //         humidity: 30 + Math.floor(Math.random() * 30),
+        //         iaq: 50 + Math.floor(Math.random() * 100),
+        //         tvoc: parseFloat((0.1 + Math.random() * 0.3).toFixed(2)),
+        //         etoh: parseFloat((0.05 + Math.random() * 0.1).toFixed(2)),
+        //         hrv: 50 + Math.floor(Math.random() * 20),
+        //         stress: 10 + Math.floor(Math.random() * 10),
+        //     };
+        // });
 
         try {
             const newLabels = dummyData.map(item => new Date(item.timestamp));
@@ -404,15 +411,15 @@ const Dashboard = React.memo(() => {
 
             </div>
             <div className="param-chart-grid">
-                <ParameterChart title="Heart Rate" unit="bpm" labels={labels} dataPoints={heartRate} min={40} max={120} borderColor="rgba(255, 99, 132, 1)" backgroundColor="rgba(255, 99, 132, 0.1)" />
+                {/* <ParameterChart title="Heart Rate" unit="bpm" labels={labels} dataPoints={heartRate} min={40} max={120} borderColor="rgba(255, 99, 132, 1)" backgroundColor="rgba(255, 99, 132, 0.1)" />
 
-                <ParameterChart title="Respiration Rate" unit="rpm" labels={labels} dataPoints={respiration} min={10} max={60} borderColor="rgba(54, 162, 235, 1)" backgroundColor="rgba(54, 162, 235, 0.1)" />
+                <ParameterChart title="Respiration Rate" unit="rpm" labels={labels} dataPoints={respiration} min={10} max={60} borderColor="rgba(54, 162, 235, 1)" backgroundColor="rgba(54, 162, 235, 0.1)" /> */}
 
                 <ParameterChart title="Temperature" unit="°F" labels={labels} dataPoints={temperature} min={95} max={105} borderColor="rgba(255, 165, 0, 1)" backgroundColor="rgba(255, 165, 0, 0.1)" />
 
                 <ParameterChart title="Humidity" unit="%" labels={labels} dataPoints={humidity} min={20} max={100} borderColor="rgba(75, 192, 192, 1)" backgroundColor="rgba(75, 192, 192, 0.1)" />
 
-                <ParameterChart title="IAQ" unit="" labels={labels} dataPoints={iaq} min={0} max={500} borderColor="rgba(153, 102, 255, 1)" backgroundColor="rgba(153, 102, 255, 0.1)" />
+                {/* <ParameterChart title="IAQ" unit="" labels={labels} dataPoints={iaq} min={0} max={500} borderColor="rgba(153, 102, 255, 1)" backgroundColor="rgba(153, 102, 255, 0.1)" />
 
                 <ParameterChart title="eCO2" unit="ppm" labels={labels} dataPoints={eco2} min={350} max={1000} borderColor="rgba(0, 128, 0, 1)" backgroundColor="rgba(0, 128, 0, 0.1)" />
 
@@ -422,7 +429,8 @@ const Dashboard = React.memo(() => {
 
                 <ParameterChart title="HRV" unit="ms" labels={labels} dataPoints={hrv} min={40} max={100} borderColor="rgba(54, 162, 100, 1)" backgroundColor="rgba(54, 162, 100, 0.1)" />
 
-                <ParameterChart title="Stress" unit="" labels={labels} dataPoints={stress} min={0} max={100} borderColor="rgba(199, 21, 133, 1)" backgroundColor="rgba(199, 21, 133, 0.1)" />
+                <ParameterChart title="Stress" unit="" labels={labels} dataPoints={stress} min={0} max={100} borderColor="rgba(199, 21, 133, 1)" backgroundColor="rgba(199, 21, 133, 0.1)" /> */
+                }
             </div>
         </div>
     );
